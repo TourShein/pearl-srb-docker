@@ -1,0 +1,6 @@
+*
+!Dockerfile.private
+!entrypoint.sh
+!validate.py
+!vendor/
+!vendor/SRBMiner-Multi-3-8-0-Linux.tar.gz

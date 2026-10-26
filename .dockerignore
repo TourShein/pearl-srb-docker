@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!Dockerfile.private
+!entrypoint.sh
+!validate.py

@@ -1,0 +1,26 @@
+# Recipe only. Supply the official archive locally; do not publish resulting image.
+FROM ubuntu:22.04 AS unpack
+ARG SRB_SHA256
+RUN useradd --uid 10001 --create-home miner
+COPY --chown=10001:10001 vendor/SRBMiner-Multi-3-8-0-Linux.tar.gz /tmp/srb.tar.gz
+USER 10001:10001
+RUN test "${#SRB_SHA256}" = 64 \
+ && ! printf '%s' "$SRB_SHA256" | grep -q '[^0-9a-fA-F]' \
+ && printf '%s  /tmp/srb.tar.gz\n' "$SRB_SHA256" | sha256sum -c - \
+ && printf '01cdd7ffdca43f3b6968fbaacea449b5  /tmp/srb.tar.gz\n' | md5sum -c - \
+ && mkdir /tmp/srb \
+ && tar -xzf /tmp/srb.tar.gz --strip-components=1 --no-same-owner -C /tmp/srb \
+ && test -f /tmp/srb/SRBMiner-MULTI && test -x /tmp/srb/SRBMiner-MULTI
+
+FROM nvidia/cuda:12.9.0-runtime-ubuntu22.04
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libnuma1 libcurl4 libssl3 ocl-icd-libopencl1 python3-minimal \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 10001 --create-home miner
+COPY --from=unpack /tmp/srb/ /opt/srb/
+COPY validate.py /usr/local/lib/pearl/validate.py
+COPY --chmod=0555 entrypoint.sh /usr/local/bin/pearl-entrypoint
+ENV HOME=/tmp NVIDIA_DRIVER_CAPABILITIES=compute,utility
+USER 10001:10001
+WORKDIR /tmp
+ENTRYPOINT ["/usr/local/bin/pearl-entrypoint"]

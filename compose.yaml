@@ -1,0 +1,45 @@
+services:
+  pearl:
+    platform: linux/amd64
+    build:
+      context: .
+    image: pearl-srb-runtime:3.8.0-local
+    pull_policy: never
+    init: true
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    stop_grace_period: 30s
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=512m,mode=1777
+    environment:
+      MINING_ACK: ${MINING_ACK:?Set authorization acknowledgment}
+      PRL_WALLET: ${PRL_WALLET:?Set public Pearl address}
+      WORKER: ${WORKER:?Set worker name}
+      POOL_HOST: ${POOL_HOST:?Set pool hostname}
+      POOL_PORT: ${POOL_PORT:?Set pool TLS port}
+      GPU_UUID: ${GPU_UUID:?Set one full GPU UUID}
+      NVIDIA_VISIBLE_DEVICES: ${GPU_UUID:?Set one full GPU UUID}
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${GPU_UUID:?Set one full GPU UUID}"]
+              capabilities: [gpu]
+    volumes:
+      - type: bind
+        source: ./vendor/SRBMiner-Multi-3-8-0
+        target: /opt/srb
+        read_only: true
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
