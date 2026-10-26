@@ -8,3 +8,6 @@
 - [Kryptex Pearl 设置](https://pool.kryptex.com/prl)、[矿池自己的 SRB 指南](https://pool.kryptex.com/en/articles/how-to-mine-pearl-en)：矿池端口须现场确认，SRB TLS 开关。
 
 发布页签名提交不等同于下载二进制已被签名或审计；不作安全背书。
+
+## 本地固定值来源
+2026-10-26 从作者 3.8.0 Linux 发布下载地址取得原始归档：MD5 与发布页一致，计算 SHA256 为 `095c3f75905ee023e8ed85ac905afefc92825cce83a528fa955cf1db456d3dd8`。这是维护者计算的内容固定值，不是作者签名或作者另行公布的 SHA256。默认 Kryptex 端点为 `prl.kryptex.network:8048`（TLS），矿池费 3%；SRBMiner pearlhash 开发费 2%。

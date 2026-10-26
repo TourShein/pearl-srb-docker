@@ -1,10 +1,8 @@
 services:
   pearl:
     platform: linux/amd64
-    build:
-      context: .
-    image: pearl-srb-runtime:3.8.0-local
-    pull_policy: never
+    image: ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.0
+    pull_policy: always
     init: true
     restart: "no"
     read_only: true
@@ -15,12 +13,12 @@ services:
     stop_grace_period: 30s
     tmpfs:
       - /tmp:rw,nosuid,nodev,noexec,size=512m,mode=1777
+      - /run/pearl:rw,nosuid,nodev,exec,size=256m,mode=0700,uid=10001,gid=10001
     environment:
-      MINING_ACK: ${MINING_ACK:?Set authorization acknowledgment}
       PRL_WALLET: ${PRL_WALLET:?Set public Pearl address}
-      WORKER: ${WORKER:?Set worker name}
-      POOL_HOST: ${POOL_HOST:?Set pool hostname}
-      POOL_PORT: ${POOL_PORT:?Set pool TLS port}
+      WORKER: ${WORKER:-pearl01}
+      POOL_HOST: ${POOL_HOST:-prl.kryptex.network}
+      POOL_PORT: ${POOL_PORT:-8048}
       GPU_UUID: ${GPU_UUID:?Set one full GPU UUID}
       NVIDIA_VISIBLE_DEVICES: ${GPU_UUID:?Set one full GPU UUID}
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
@@ -31,15 +29,15 @@ services:
             - driver: nvidia
               device_ids: ["${GPU_UUID:?Set one full GPU UUID}"]
               capabilities: [gpu]
+    # First start downloads, verifies and executes upstream closed-source mining software.
+    # Dedicated cache only: never mount NAS shares, Docker socket or host root.
     volumes:
-      - type: bind
-        source: ./vendor/SRBMiner-Multi-3-8-0
-        target: /opt/srb
-        read_only: true
-        bind:
-          create_host_path: false
+      - miner-cache:/var/cache/pearl
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  miner-cache:

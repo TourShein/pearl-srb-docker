@@ -1,29 +1,14 @@
-# 验证报告 — 2026-10-26
+# 验证记录（2026-10-26）
 
-## 已通过
+## 已完成
+- 原作者 3.8.0 Linux 归档只下载/静态检查，未执行。MD5 与发布页一致；SHA256 固定在 bootstrap.py/README。
+- 静态归档：唯一顶层 SRBMiner-Multi-3-8-0，7 个条目，无软/硬链接、动态库或路径穿越；ReadMe.txt 包含许可。完整保留。
+- readelf 静态检查（未用 ldd、未执行二进制）：NEEDED 为 glibc/pthread/dl/rt/m/动态加载器；没有 RPATH/RUNPATH。GPU 驱动动态加载仍需实机验证。
+- 8 项本地离线单元测试通过，包括仅运行自写 shell mock 的启动参数测试；非法钱包/UUID、设备不匹配、下载 hash 错误、损坏缓存、默认 8048 TLS、穿越与 symlink 均覆盖。缓存重用不重复下载，每次从已验证归档新解包而不是信任旧可执行文件。
+- shell 语法检查通过；无真实挖矿、无矿池连接、无任何真实钱包。
 
-- `sh -n entrypoint.sh`：shell 语法通过。
-- `PYTHONDONTWRITEBYTECODE=1 python3 tests/test_recipe.py`：4 组测试通过。
-- 测试包括合成 PRL Bech32m 公钥地址、26 项无效输入、固定算法/TLS/CPU 关闭等 argv、拒绝额外命令参数、错误钱包/UUID 时不执行 mock，以及 Compose 静态安全断言。
-- mock 是测试临时创建的 `printf` 脚本，不是真矿工；没有执行任何下载程序。
-- 人工核对上游 3.8.0 参数、归档 MD5、Docker GPU reservation 和 NVIDIA UUID/capability 文档。
-
-## 未运行 / 未验证
-
-没有下载矿工，没有实际归档 SHA256，没有 Docker build / Compose config 解析，没有 NVIDIA GPU 或矿池连接测试，没有份额/性能/功耗/温度数据。Dockerfile 的版本、路径、基础镜像、系统库兼容性与只读运行均仍需目标主机验证。静态断言不是 Docker schema 校验，mock 通过也不等于矿工能运行。
-
-没有安装软件、修改系统设置、修改功率/频率、发布仓库或镜像。用户后来提出云端仓库与镜像发布，属于后续待明确的发布流程；此文件不声称该流程已完成。
-
-## 发布门槛
-
-当前主 Dockerfile 已改为不含矿工的 runtime-only 镜像；Compose 只读挂载用户自行准备的官方发布目录。Dockerfile.private 保留私有构建路线，不得推送其产物。已添加人工触发 GHCR workflow，但没有创建仓库、运行 CI 或推送镜像。构建/推送不等于获准在 CI 或云端挖矿。
-
-更新：runtime-only 改造后重新运行 shell 语法及全部 4 组测试，通过。用现有 PyYAML 对 compose.yaml 和 workflow 做了基础 YAML 解析，通过；这不是 Docker/GitHub 的完整语义校验。主镜像静态检查无 vendor COPY，Compose 的唯一 bind 为 /opt/srb 只读且禁止自动创建缺失源目录。
-
-## 已核验的后续构建结果
-
-2026-10-26 05:14 UTC：私有仓库 TourShein/pearl-srb-docker 的 run 40272974664 成功，commit 0c372ffbb8ff9a45d2adbee90a506825cfac9e8e，耗时 1m38s（job 1m31s）。工作流先运行 mock 测试，再构建主 runtime-only Dockerfile；publish=false，未发布镜像。
-
-运行链接：https://github.com/TourShein/pearl-srb-docker/actions/runs/40272974664 （私有访问）。此前“没有创建仓库、运行 CI、Docker build”的记录已被此结果更新；没有执行矿工/GPU/矿池测试的限制仍然有效。
-
-CI 提示 checkout@v4 的 Node 20 已弃用，由平台强制使用 Node 24，另有 ubuntu-latest 标签迁移提示；此次执行成功，不等于长期固定可复现环境。实际矿工的相对动态库/数据加载在 CWD=/tmp 下仍未验证。
+## 尚未验证
+- 本执行环境没有 docker 命令，故不能本地构建/运行容器；CI 内提供构建与无网络、无钱包的容器 smoke，须查看最终 commit 的 CI 结果。
+- GHCR 包发布、Public 可见性、匿名 pull 均需发布后验证；本记录不表示镜像已经存在。
+- 没有真实 NVIDIA GPU / Unraid 运行、驱动兼容性、矿池 accepted shares、算力、收益或长期稳定性验证。
+- 固定 hash、容器隔离及社区测试不等于闭源程序的安全审计或担保。

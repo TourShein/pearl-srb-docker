@@ -35,12 +35,12 @@ def valid_wallet(s):
             and (data[0] != 0 or len(decoded) in (20, 32)))
 
 def validate(env):
-    if env.get('MINING_ACK') != 'I_OWN_OR_AM_AUTHORIZED_TO_USE_THIS_GPU':
-        raise ValueError('MINING_ACK: explicit hardware authorization acknowledgment required')
     if not valid_wallet(env.get('PRL_WALLET', '')):
         raise ValueError('PRL_WALLET: valid lowercase prl1 public receive address required; never use a seed/private key')
     if not re.fullmatch(r'GPU-[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', env.get('GPU_UUID', '')):
         raise ValueError('GPU_UUID: one full GPU UUID required (not all/index/placeholder)')
+    if env.get('NVIDIA_VISIBLE_DEVICES') != env.get('GPU_UUID'):
+        raise ValueError('NVIDIA_VISIBLE_DEVICES must equal the selected GPU_UUID')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,31}', env.get('WORKER', '')):
         raise ValueError('WORKER: 1-32 letters/digits/underscore/hyphen required')
     host = env.get('POOL_HOST', '')
