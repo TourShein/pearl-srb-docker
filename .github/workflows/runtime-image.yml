@@ -1,9 +1,9 @@
-name: Runtime-only image (no miner)
+name: Bootstrap image (no bundled miner)
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish runtime-only image to GHCR
+        description: Publish bootstrap image to GHCR
         type: boolean
         default: false
 permissions:
@@ -22,17 +22,27 @@ jobs:
         run: |
           sh -n entrypoint.sh
           PYTHONDONTWRITEBYTECODE=1 python3 tests/test_recipe.py
-      - name: Build runtime-only image
+      - name: Build bootstrap image
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-          docker build --pull -f Dockerfile -t "$IMAGE:runtime-3.8.0" -t "$IMAGE:sha-$GITHUB_SHA" .
+          docker build --pull -f Dockerfile -t "$IMAGE:bootstrap-3.8.0" -t "$IMAGE:sha-$GITHUB_SHA" .
+      - name: Offline container smoke (no wallet, network, GPU or miner)
+        run: |
+          set +e
+          docker run --rm --network none --read-only --cap-drop ALL "$IMAGE:bootstrap-3.8.0" >smoke.log 2>&1
+          status=$?
+          set -e
+          cat smoke.log
+          test "$status" -eq 64
+          grep -q 'PRL_WALLET' smoke.log
+          ! grep -q 'Downloading' smoke.log
       - name: Publish only if explicitly requested
         if: ${{ inputs.publish }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "$IMAGE:runtime-3.8.0"
+          docker push "$IMAGE:bootstrap-3.8.0"
           docker push "$IMAGE:sha-$GITHUB_SHA"
           docker logout ghcr.io
