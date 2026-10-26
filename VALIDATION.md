@@ -12,3 +12,10 @@
 - GHCR 包发布、Public 可见性、匿名 pull 均需发布后验证；本记录不表示镜像已经存在。
 - 没有真实 NVIDIA GPU / Unraid 运行、驱动兼容性、矿池 accepted shares、算力、收益或长期稳定性验证。
 - 固定 hash、容器隔离及社区测试不等于闭源程序的安全审计或担保。
+
+## 发布后验证（2026-10-26 05:32 UTC）
+
+- GitHub Actions run `40274295899` 成功，构建源码 `ecabc0d13453f5ac5dfa9533a8f2b081a1e339b9`，job 3m06s。包括 8 项 mock 测试、Docker build、无网络且缺钱包的容器 smoke，以及 GHCR push。
+- 仓库与镜像包均已在 GitHub UI 确认为 Public。
+- 不带用户凭据，通过 GHCR 标准匿名 pull token 获取 manifest 与 config，均 HTTP 200；清单 digest 与本地计算匹配：`sha256:d7118c3768b4bb884133b4d7ba612e3d8a70b45cfcce14950de24e2187eec855`。平台 linux/amd64，容器用户 10001:10001。
+- 未在本地执行完整 docker pull；未下载运行镜像中的真实矿工，未做 GPU/Unraid 实测。矿工归档只用于静态检查，没有执行。

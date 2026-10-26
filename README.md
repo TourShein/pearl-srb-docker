@@ -1,6 +1,6 @@
 # Pearl / SRBMiner：Unraid 拉取运行
 
-**候选版本：`ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.0`。本文件不代表镜像已发布；发布成功且包设为 Public 后才支持匿名 pull。尚未做真实 GPU / Unraid 挖矿验证。**
+**已发布公开镜像：`ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.0`。GitHub Actions 构建、8 项离线测试与无网络容器 smoke 均通过；匿名读取镜像清单和配置已验证。尚未做真实 GPU / Unraid 挖矿验证。**
 
 这个镜像不是空壳手工装矿工：镜像带运行库与启动器，**你第一次启动时自动从原作者下载 SRBMiner 3.8.0，校验固定 SHA256，然后执行挖矿**。后续启动复用专用缓存，不需再手动下载/挂载矿工。镜像层不打包或再分发闭源矿工。
 
@@ -54,4 +54,6 @@ SHA256 是 2026-10-26 下载原作者归档后本地计算的固定值，不冒�
 
 `tests/test_recipe.py` 只生成并执行我们自己的打印参数 mock，验证输入、默认 TLS 端口、归档校验/缓存/解包；从不执行真正矿工（也不执行其 help/version）。CI 手动触发构建，可选择发布 GHCR；容器 smoke 使用 `--network none` 且缺少钱包，必须在下载前失败。详见 [验证范围](VALIDATION.md) 和 [来源](SOURCES.md)。
 
-旧的手工挂载矿工与 `Dockerfile.private` 流程已经退役，避免用户额外构建/下载。目标是 pull 后配置自己的两项信息即可启动，不代表当前候选镜像已上架或已经验证出币。
+旧的手工挂载矿工与 `Dockerfile.private` 流程已经退役，避免用户额外构建/下载。目标是 pull 后配置自己的两项信息即可启动，镜像已上架，但不代表已经验证出币。
+
+发布记录：[CI run 40274295899](https://github.com/TourShein/pearl-srb-docker/actions/runs/40274295899)，构建源码 commit `ecabc0d13453f5ac5dfa9533a8f2b081a1e339b9`。镜像 digest：`sha256:d7118c3768b4bb884133b4d7ba612e3d8a70b45cfcce14950de24e2187eec855`。如需固定内容，可用该 digest 代替 tag。
