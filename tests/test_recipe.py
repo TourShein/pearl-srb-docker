@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Only executes a locally created argv-printing mock, NEVER a miner."""
 import importlib.util
+import hashlib
+import io
+import sys
+import tarfile
+from unittest import mock
 import os
 from pathlib import Path
 import subprocess
@@ -8,6 +13,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import bootstrap as b
 spec = importlib.util.spec_from_file_location('validator', ROOT/'validate.py')
 v = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(v)
@@ -27,15 +34,15 @@ def synthetic_address():
     return 'prl1' + ''.join(v.CHARSET[d] for d in data + [(polymod >> 5*(5-i)) & 31 for i in range(6)])
 
 BASE = dict(MINING_ACK='I_OWN_OR_AM_AUTHORIZED_TO_USE_THIS_GPU', PRL_WALLET=synthetic_address(),
-            GPU_UUID='GPU-11111111-2222-3333-4444-555555555555', WORKER='test01',
+            NVIDIA_VISIBLE_DEVICES='GPU-11111111-2222-3333-4444-555555555555', GPU_UUID='GPU-11111111-2222-3333-4444-555555555555', WORKER='test01',
             POOL_HOST='pool.test.example.org', POOL_PORT='8048')
 
 class Tests(unittest.TestCase):
     def test_valid(self):
         v.validate(BASE)
     def test_reject_bad_inputs(self):
-        bad = {'MINING_ACK':['','yes'], 'PRL_WALLET':['','REPLACE',BASE['PRL_WALLET'][:-1]+'q','seed words here',BASE['PRL_WALLET']+';x'],
-               'GPU_UUID':['all','0','GPU-REPLACE',''], 'WORKER':['a;b','$(id)','a b','-x','x'*33],
+        bad = {'PRL_WALLET':['','REPLACE',BASE['PRL_WALLET'][:-1]+'q','seed words here',BASE['PRL_WALLET']+';x'],
+               'NVIDIA_VISIBLE_DEVICES':['all','','GPU-other'], 'GPU_UUID':['all','0','GPU-REPLACE',''], 'WORKER':['a;b','$(id)','a b','-x','x'*33],
                'POOL_HOST':['choose-your-pool.invalid','ssl://pool.org','pool.org:8048','a,b.org','-bad.org'],
                'POOL_PORT':['0','65536','8048;id','-1','']}
         for key, values in bad.items():
@@ -44,40 +51,79 @@ class Tests(unittest.TestCase):
                     v.validate(dict(BASE, **{key:value}))
     def test_mock_entrypoint(self):
         with tempfile.TemporaryDirectory() as d:
-            d = Path(d)
-            mock = d/'mock'
-            mock.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
-            mock.chmod(0o755)
-            entry = d/'entrypoint.sh'
-            entry.write_text((ROOT/'entrypoint.sh').read_text().replace('/usr/local/lib/pearl/validate.py',str(ROOT/'validate.py')).replace('/opt/srb/SRBMiner-MULTI',str(mock)))
-            env = dict(os.environ, **BASE)
-            result = subprocess.run(['sh',str(entry)],env=env,text=True,capture_output=True,check=True)
-            args = result.stdout.splitlines()
-            self.assertEqual(args[args.index('--algorithm')+1],'pearlhash')
-            self.assertEqual(args[args.index('--tls')+1],'true')
-            self.assertEqual(args[args.index('--wallet')+1],BASE['PRL_WALLET']+'.test01')
+            binary = Path(d)/'SRBMiner-MULTI'
+            binary.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+            binary.chmod(0o700)
+            # Replace preparation only in an isolated Python harness. No real miner/network.
+            harness = ('import bootstrap as b; from pathlib import Path; '
+                       + 'b.prepare=lambda:Path(' + repr(str(binary)) + '); b.main()')
+            env = dict(os.environ, **BASE, PYTHONPATH=str(ROOT))
+            env.pop('POOL_HOST'); env.pop('POOL_PORT')
+            r = subprocess.run([sys.executable,'-c',harness],env=env,text=True,capture_output=True,check=True)
+            args = r.stdout.splitlines()
+            self.assertEqual(args[args.index('--pool')+1], 'prl.kryptex.network:8048')
+            self.assertEqual(args[args.index('--wallet')+1], BASE['PRL_WALLET']+'.test01')
             self.assertIn('--disable-cpu',args)
             self.assertIn('--gpu-disable-oc',args)
             self.assertNotIn('--api-enable',args)
-            for extra, changes in [(['--help'],{}),([] ,{'PRL_WALLET':'bad'}),([] ,{'GPU_UUID':'all'})]:
-                r = subprocess.run(['sh',str(entry)]+extra,env=dict(env,**changes),text=True,capture_output=True)
-                self.assertEqual(r.returncode,64)
-                self.assertEqual(r.stdout,'')
+
+    def archive(self, path, unsafe=None):
+        with tarfile.open(path, 'w:gz') as tar:
+            for name, content in [('SRBMiner-MULTI',b'#!/bin/sh\nexit 0\n'),('ReadMe.txt',b'mock license')]:
+                info = tarfile.TarInfo(b.RELEASE+'/'+name)
+                info.mode = 0o755
+                info.size = len(content)
+                tar.addfile(info,io.BytesIO(content))
+            if unsafe:
+                info = tarfile.TarInfo(unsafe)
+                if 'link' in unsafe:
+                    info.type = tarfile.SYMTYPE
+                    info.linkname = '/tmp/escape'
+                tar.addfile(info)
+
+    def test_download_cache_and_recheck(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); fixture=root/'mock.tar.gz'; self.archive(fixture)
+            def fake_download(p): p.write_bytes(fixture.read_bytes())
+            with mock.patch.object(b,'SHA256',b.digest(fixture)), mock.patch.object(b,'download',side_effect=fake_download) as dl:
+                binary=b.prepare(root/'cache',root)
+                self.assertEqual(binary.parent.name,b.RELEASE)
+                self.assertEqual(dl.call_count,1)
+                binary.write_text('tampered extracted binary')
+                other=b.prepare(root/'cache',root)
+                self.assertNotEqual(other.read_text(),binary.read_text())
+                self.assertEqual(dl.call_count,1)
+                (root/'cache'/'srb-3.8.0.tar.gz').write_bytes(b'corrupt')
+                with self.assertRaises(ValueError): b.prepare(root/'cache',root)
+
+    def test_bad_download(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(b,'download',side_effect=lambda p:p.write_bytes(b'bad')):
+            with self.assertRaises(ValueError): b.prepare(Path(d))
+            self.assertFalse((Path(d)/'srb-3.8.0.tar.gz').exists())
+
+    def test_unsafe_archives(self):
+        for bad in ['../escape','/tmp/escape',b.RELEASE+'/../escape',b.RELEASE+'/link']:
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as d:
+                root=Path(d); fixture=root/'mock.tar.gz'; self.archive(fixture,bad)
+                with self.assertRaises(ValueError): b.unpack(fixture,root/'out')
+
+    def test_invalid_config_never_downloads(self):
+        with mock.patch.dict(os.environ,{'PRL_WALLET':'bad'},clear=True), mock.patch.object(sys,'argv',['bootstrap.py']), mock.patch.object(b,'prepare') as prep:
+            with self.assertRaises(ValueError): b.main()
+            prep.assert_not_called()
+
     def test_static_safety(self):
         compose = (ROOT/'compose.yaml').read_text()
         for forbidden in ['privileged:', 'network_mode:', 'ports:', 'count:', '/var/run/docker.sock']:
             self.assertNotIn(forbidden,compose)
         for required in ['init: true','restart: "no"','read_only: true','cap_drop: [ALL]','no-new-privileges:true','compute,utility','device_ids:']:
             self.assertIn(required,compose)
-        docker = (ROOT/'Dockerfile.private').read_text()
-        self.assertIn('sha256sum -c -',docker)
-        self.assertIn('md5sum -c -',docker)
-        self.assertNotIn('RUN /opt/srb',docker)
         public = (ROOT/'Dockerfile').read_text()
         self.assertNotIn('COPY --from=unpack', public)
         self.assertNotIn('vendor/', public)
-        self.assertIn('create_host_path: false', compose)
-        self.assertIn('target: /opt/srb', compose)
+        self.assertIn('COPY bootstrap.py validate.py /usr/local/lib/pearl/\n', public)
+        self.assertIn('miner-cache:/var/cache/pearl', compose)
+        self.assertNotIn('build:', compose)
         self.assertNotIn('/.dockerenv',(ROOT/'entrypoint.sh').read_text())
 
 if __name__ == '__main__':
