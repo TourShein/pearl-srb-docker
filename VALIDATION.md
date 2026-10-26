@@ -19,3 +19,11 @@
 当前主 Dockerfile 已改为不含矿工的 runtime-only 镜像；Compose 只读挂载用户自行准备的官方发布目录。Dockerfile.private 保留私有构建路线，不得推送其产物。已添加人工触发 GHCR workflow，但没有创建仓库、运行 CI 或推送镜像。构建/推送不等于获准在 CI 或云端挖矿。
 
 更新：runtime-only 改造后重新运行 shell 语法及全部 4 组测试，通过。用现有 PyYAML 对 compose.yaml 和 workflow 做了基础 YAML 解析，通过；这不是 Docker/GitHub 的完整语义校验。主镜像静态检查无 vendor COPY，Compose 的唯一 bind 为 /opt/srb 只读且禁止自动创建缺失源目录。
+
+## 已核验的后续构建结果
+
+2026-10-26 05:14 UTC：私有仓库 TourShein/pearl-srb-docker 的 run 40272974664 成功，commit 0c372ffbb8ff9a45d2adbee90a506825cfac9e8e，耗时 1m38s（job 1m31s）。工作流先运行 mock 测试，再构建主 runtime-only Dockerfile；publish=false，未发布镜像。
+
+运行链接：https://github.com/TourShein/pearl-srb-docker/actions/runs/40272974664 （私有访问）。此前“没有创建仓库、运行 CI、Docker build”的记录已被此结果更新；没有执行矿工/GPU/矿池测试的限制仍然有效。
+
+CI 提示 checkout@v4 的 Node 20 已弃用，由平台强制使用 Node 24，另有 ubuntu-latest 标签迁移提示；此次执行成功，不等于长期固定可复现环境。实际矿工的相对动态库/数据加载在 CWD=/tmp 下仍未验证。

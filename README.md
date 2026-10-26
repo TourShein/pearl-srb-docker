@@ -1,6 +1,6 @@
 # Pearl 专用 SRBMiner 3.8.0 Docker 配方（未实机验证）
 
-这是 **Linux x86-64 + 单张 NVIDIA GPU** 的 runtime-only 配方，不是已经验证的成品镜像。主 Dockerfile **不含矿工二进制**，不自动下载；官方矿工由使用者另行取得并只读挂载。只在自己拥有或获授权的设备上使用。当前会话没有构建/运行 Docker、没有执行任何矿工（含 help/version），没有挖矿或改主机设置。
+这是 **Linux x86-64 + 单张 NVIDIA GPU** 的 runtime-only 配方，不是已经验证的成品镜像。主 Dockerfile **不含矿工二进制**，不自动下载；官方矿工由使用者另行取得并只读挂载。只在自己拥有或获授权的设备上使用。运行环境镜像已于 2026-10-26 在 GitHub Actions 构建成功（run 40272974664，commit 0c372ff）；推送步骤关闭，尚无可拉取的发布镜像。没有执行任何矿工（含 help/version），没有 GPU 实测、挖矿或改主机设置。
 
 ## 设计
 
@@ -16,7 +16,7 @@
 
 需要已有 NVIDIA Linux 主机、兼容驱动、Docker Compose 与已配置的 NVIDIA Container Toolkit。Mac Docker Desktop/本云环境不作为 NVIDIA 实机验证平台。不要为了启动失败直接加 privileged 或关掉隔离。
 
-1. 从[作者 3.8.0 发布页](https://github.com/doktor83/SRBMiner-Multi/releases/tag/3.8.0)自己下载 **SRBMiner-Multi-3-8-0-Linux.tar.gz**，放到 `vendor/`。核对来源和许可，不运行包内脚本。
+1. 先创建 `vendor/` 目录，再从[作者 3.8.0 发布页](https://github.com/doktor83/SRBMiner-Multi/releases/tag/3.8.0)自己下载 **SRBMiner-Multi-3-8-0-Linux.tar.gz**，放到 `vendor/`。核对来源和许可，不运行包内脚本。
 2. 在本机计算并核对：
 
 ```sh
@@ -39,7 +39,7 @@ docker compose config --quiet
 docker compose build --pull pearl
 ```
 
-基础镜像 tag 与 apt 软件包并未锁 digest/快照，因此主镜像只固定运行环境版本标签；矿工版本由用户挂载的 3.8.0 官方归档决定，不是完全可复现构建。正式保留镜像前记录已审查的基础镜像 digest；不要把未知 digest 当已验证值。未验证归档结构、动态库兼容性及构建成功。
+基础镜像 tag 与 apt 软件包并未锁 digest/快照，因此主镜像只固定运行环境版本标签；矿工版本由用户挂载的 3.8.0 官方归档决定，不是完全可复现构建。正式保留镜像前记录已审查的基础镜像 digest；不要把未知 digest 当已验证值。运行环境镜像构建已通过；未验证矿工归档结构、动态库兼容性及实际 GPU 运行。
 
 5. 只有你决定实际用电挖矿时才运行：
 
@@ -64,7 +64,7 @@ docker compose down
 
 ## 仓库 / CI 发布
 
-`.github/workflows/runtime-image.yml` 只支持人工 `workflow_dispatch`，默认 `publish=false`：mock 测试后构建主 Dockerfile。显式选 `publish=true` 才用仓库内置 GITHUB_TOKEN 推送到 `ghcr.io/<owner>/<repo>` 的 `runtime-3.8.0` 与 commit 标签。**这是 GHCR，不是 Google gcr.io**；实际发布目标应先确定。没有 push 自动触发，没有 GPU runner，没有矿工运行步骤。官方 checkout 使用 v4 大版本引用，正式强化供应链时可锁已审查 commit。GitHub runner 是否产生费用取决于账户额度/仓库设置；本包没有启动任何 CI。
+`.github/workflows/runtime-image.yml` 只支持人工 `workflow_dispatch`，默认 `publish=false`：mock 测试后构建主 Dockerfile。显式选 `publish=true` 才用仓库内置 GITHUB_TOKEN 推送到 `ghcr.io/<owner>/<repo>` 的 `runtime-3.8.0` 与 commit 标签。**这是 GHCR，不是 Google gcr.io**；实际发布目标应先确定。没有 push 自动触发，没有 GPU runner，没有矿工运行步骤。官方 checkout 使用 v4 大版本引用，正式强化供应链时可锁已审查 commit。GitHub runner 是否产生费用取决于账户额度/仓库设置；已运行一次仅构建 CI 并成功，未推送镜像。
 
 `.dockerignore` 把 `vendor` 与 `.env` 排除在主构建上下文之外；`.gitignore` 防止误提交官方文件。发布前仍需检查 git diff。CI 构建/推送成功也不代表有 GPU 的实际挖矿通过。
 
