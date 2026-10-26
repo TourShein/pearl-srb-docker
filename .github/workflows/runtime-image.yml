@@ -1,0 +1,38 @@
+name: Runtime-only image (no miner)
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish runtime-only image to GHCR
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # Official major tag; pin a reviewed commit for stricter supply-chain policy.
+      - uses: actions/checkout@v4
+      - name: Test wrapper only (never run miner)
+        run: |
+          sh -n entrypoint.sh
+          PYTHONDONTWRITEBYTECODE=1 python3 tests/test_recipe.py
+      - name: Build runtime-only image
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          docker build --pull -f Dockerfile -t "$IMAGE:runtime-3.8.0" -t "$IMAGE:sha-$GITHUB_SHA" .
+      - name: Publish only if explicitly requested
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:runtime-3.8.0"
+          docker push "$IMAGE:sha-$GITHUB_SHA"
+          docker logout ghcr.io
