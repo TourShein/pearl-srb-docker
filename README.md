@@ -1,8 +1,16 @@
 # Pearl / SRBMiner：Unraid 拉取运行
 
-**已发布公开镜像：`ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.0`。GitHub Actions 构建、8 项离线测试与无网络容器 smoke 均通过；匿名读取镜像清单和配置已验证。尚未做真实 GPU / Unraid 挖矿验证。**
+**3.8.1 更新目标：`ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.1`；发布/验证状态见 [VALIDATION.md](VALIDATION.md)。旧的 `bootstrap-3.8.0` 保留用于回退，不覆盖。尚未做真实 GPU / Unraid 挖矿验证。**
 
-这个镜像不是空壳手工装矿工：镜像带运行库与启动器，**你第一次启动时自动从原作者下载 SRBMiner 3.8.0，校验固定 SHA256，然后执行挖矿**。后续启动复用专用缓存，不需再手动下载/挂载矿工。镜像层不打包或再分发闭源矿工。
+这个镜像不是空壳手工装矿工：镜像带运行库与启动器，**你第一次启动时自动从原作者下载 SRBMiner 3.8.1，校验固定 SHA256，然后执行挖矿**。后续启动复用专用缓存，不需再手动下载/挂载矿工。镜像层不打包或再分发闭源矿工。
+
+## 为什么没有预装二进制
+
+[3.8.1 官方许可](https://github.com/doktor83/SRBMiner-Multi/blob/3.8.1/README.md#license) 限制未经作者事先书面许可再分发、发布专有 GPU 二进制或将其并入其他产品；本项目尚无此授权。因此公开镜像只包含我们自己的启动器与运行库，不再分发 SRBMiner。运行时由用户从原作者取得完整、未修改的官方发布包，仅在用户有权使用的硬件上使用；这不改变上游条款，也不是法律保证。包内第三方组件许可不等于 SRBMiner 整体再分发许可。
+
+## 升级与回退
+
+已有 Unraid 容器只需把 Repository 改为上面的 `bootstrap-3.8.1` 标签，再由你更新/启动；钱包、GPU 和其他安全设置不必更改。3.8.1 会首次下载自己的归档，后续复用缓存。若需回退，把标签改回 `ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.0`。不同版本缓存文件分开保存，不删除旧缓存，也不覆盖旧镜像标签。
 
 ## 两步启动
 
@@ -27,7 +35,7 @@
 - 镜像：CUDA 12.9 / Ubuntu 22.04 运行库、Python 启动器和输入验证；**没有 SRBMiner 二进制**。
 - 首次运行下载固定原始归档，完整保留作者 `ReadMe.txt` 与随包许可/脚本，不修改二进制、不运行附带脚本。
 - 默认 SRBMiner `pearlhash` 开发费 **2%**，Kryptex 矿池费 **3%**；两者独立，不是本项目收费，也不应简单当作精确总扣费比例。变更矿池前核对其费用与 TLS 端口。
-- 只挖 Pearl，禁用 CPU、MSR/大页调整、AMD/Intel、GPU 超频及 autotune 配置加载；不开放 API、不带其他人的钱包/推荐码。
+- 只挖 Pearl，禁用 CPU、MSR/大页调整、AMD/Intel、GPU 超频及 autotune 配置加载；不开放 API、不带其他人的钱包/推荐码；不启用 3.8.1 新增的 GPU power tuner。
 
 ## 安全边界与缓存
 
@@ -43,17 +51,18 @@ Compose 使用 UID/GID 10001、只读根目录、drop ALL capabilities、no-new-
 
 ## 固定版本与验证
 
-原始下载：[作者 SRBMiner 3.8.0 Linux](https://github.com/doktor83/SRBMiner-Multi/releases/download/3.8.0/SRBMiner-Multi-3-8-0-Linux.tar.gz)
+原始下载：[作者 SRBMiner 3.8.1 Linux](https://github.com/doktor83/SRBMiner-Multi/releases/download/3.8.1/SRBMiner-Multi-3-8-1-Linux.tar.gz)
 
 ```
-SHA256 095c3f75905ee023e8ed85ac905afefc92825cce83a528fa955cf1db456d3dd8
-MD5    01cdd7ffdca43f3b6968fbaacea449b5
+SHA256 2f65b3b7f7781def46610c43b8a10a3d38033f6cf4ef6cc968b405ca9b0ce807
+MD5    f7d94347dfae5e629225a3c14bc12794
 ```
 
-SHA256 是 2026-10-26 下载原作者归档后本地计算的固定值，不冒称作者签名/发布的 SHA256；MD5 与作者发布页一致。运行时使用强 SHA256，不允许环境变量覆盖版本、下载 URL 或 hash。升级需要审阅后改代码并发布新标签。
+SHA256 是 2026-10-29 独立下载原作者归档后本地计算的固定值，并与 GitHub release asset 的 digest 相符；MD5 与作者发布页一致。它不是作者签名或安全审计。运行时使用强 SHA256，不允许环境变量覆盖版本、下载 URL 或 hash。升级需要审阅后改代码并发布新标签。
 
 `tests/test_recipe.py` 只生成并执行我们自己的打印参数 mock，验证输入、默认 TLS 端口、归档校验/缓存/解包；从不执行真正矿工（也不执行其 help/version）。CI 手动触发构建，可选择发布 GHCR；容器 smoke 使用 `--network none` 且缺少钱包，必须在下载前失败。详见 [验证范围](VALIDATION.md) 和 [来源](SOURCES.md)。
 
-旧的手工挂载矿工与 `Dockerfile.private` 流程已经退役，避免用户额外构建/下载。目标是 pull 后配置自己的两项信息即可启动，镜像已上架，但不代表已经验证出币。
+旧的手工挂载矿工与 `Dockerfile.private` 流程已经退役，避免用户额外构建/下载。目标是 pull 后配置自己的两项信息即可启动；首次启动仍需下载上游归档，不代表已经验证出币。
 
-发布记录：[CI run 40274295899](https://github.com/TourShein/pearl-srb-docker/actions/runs/40274295899)，构建源码 commit `ecabc0d13453f5ac5dfa9533a8f2b081a1e339b9`。镜像 digest：`sha256:d7118c3768b4bb884133b4d7ba612e3d8a70b45cfcce14950de24e2187eec855`。如需固定内容，可用该 digest 代替 tag。
+3.8.0 回退版本发布记录：[CI run 40274295899](https://github.com/TourShein/pearl-srb-docker/actions/runs/40274295899)，构建源码 commit `ecabc0d13453f5ac5dfa9533a8f2b081a1e339b9`。镜像 digest：`sha256:d7118c3768b4bb884133b4d7ba612e3d8a70b45cfcce14950de24e2187eec855`。如需固定内容，可用该 digest 代替 tag。
+

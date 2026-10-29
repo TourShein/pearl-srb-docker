@@ -11,10 +11,10 @@ import tempfile
 import urllib.request
 from validate import validate
 
-VERSION = '3.8.0'
-RELEASE = 'SRBMiner-Multi-3-8-0'
-URL = 'https://github.com/doktor83/SRBMiner-Multi/releases/download/3.8.0/SRBMiner-Multi-3-8-0-Linux.tar.gz'
-SHA256 = '095c3f75905ee023e8ed85ac905afefc92825cce83a528fa955cf1db456d3dd8'
+VERSION = '3.8.1'
+RELEASE = 'SRBMiner-Multi-3-8-1'
+URL = 'https://github.com/doktor83/SRBMiner-Multi/releases/download/3.8.1/SRBMiner-Multi-3-8-1-Linux.tar.gz'
+SHA256 = '2f65b3b7f7781def46610c43b8a10a3d38033f6cf4ef6cc968b405ca9b0ce807'
 CACHE = Path('/var/cache/pearl')
 MAX_BYTES = 128 * 1024 * 1024
 
@@ -90,7 +90,7 @@ def prepare(cache=CACHE, execution_dir=Path('/run/pearl')):
         if archive.is_symlink():
             raise ValueError('Archive cache must not be a symlink')
         if not archive.exists():
-            print('Downloading original SRBMiner 3.8.0; verifying pinned SHA256 before execution.', flush=True)
+            print(f'Downloading original SRBMiner {VERSION}; verifying pinned SHA256 before execution.', flush=True)
             with tempfile.TemporaryDirectory(prefix='download-', dir=cache) as tmp:
                 candidate = Path(tmp) / 'archive'
                 download(candidate)
@@ -132,3 +132,4 @@ if __name__ == '__main__':
     except (ValueError, OSError, tarfile.TarError) as e:
         print('Startup refused: ' + str(e), file=sys.stderr)
         sys.exit(64)
+

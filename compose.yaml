@@ -1,7 +1,7 @@
 services:
   pearl:
     platform: linux/amd64
-    image: ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.0
+    image: ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.1
     pull_policy: always
     init: true
     restart: "no"
@@ -41,3 +41,4 @@ services:
 
 volumes:
   miner-cache:
+
