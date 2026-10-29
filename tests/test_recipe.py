@@ -66,6 +66,8 @@ class Tests(unittest.TestCase):
             self.assertIn('--disable-cpu',args)
             self.assertIn('--gpu-disable-oc',args)
             self.assertNotIn('--api-enable',args)
+            self.assertNotIn('--gpu-power-tuner',args)
+            self.assertNotIn('--gpu-power-tuner-loss',args)
 
     def archive(self, path, unsafe=None):
         with tarfile.open(path, 'w:gz') as tar:
@@ -93,13 +95,13 @@ class Tests(unittest.TestCase):
                 other=b.prepare(root/'cache',root)
                 self.assertNotEqual(other.read_text(),binary.read_text())
                 self.assertEqual(dl.call_count,1)
-                (root/'cache'/'srb-3.8.0.tar.gz').write_bytes(b'corrupt')
+                (root/'cache'/('srb-' + b.VERSION + '.tar.gz')).write_bytes(b'corrupt')
                 with self.assertRaises(ValueError): b.prepare(root/'cache',root)
 
     def test_bad_download(self):
         with tempfile.TemporaryDirectory() as d, mock.patch.object(b,'download',side_effect=lambda p:p.write_bytes(b'bad')):
             with self.assertRaises(ValueError): b.prepare(Path(d))
-            self.assertFalse((Path(d)/'srb-3.8.0.tar.gz').exists())
+            self.assertFalse((Path(d)/('srb-' + b.VERSION + '.tar.gz')).exists())
 
     def test_unsafe_archives(self):
         for bad in ['../escape','/tmp/escape',b.RELEASE+'/../escape',b.RELEASE+'/link']:
@@ -126,5 +128,40 @@ class Tests(unittest.TestCase):
         self.assertNotIn('build:', compose)
         self.assertNotIn('/.dockerenv',(ROOT/'entrypoint.sh').read_text())
 
+    def test_release_pins_and_publish_tags(self):
+        self.assertEqual(b.VERSION, '3.8.1')
+        self.assertEqual(b.RELEASE, 'SRBMiner-Multi-3-8-1')
+        self.assertEqual(b.URL, 'https://github.com/doktor83/SRBMiner-Multi/releases/download/3.8.1/SRBMiner-Multi-3-8-1-Linux.tar.gz')
+        self.assertEqual(b.SHA256, '2f65b3b7f7781def46610c43b8a10a3d38033f6cf4ef6cc968b405ca9b0ce807')
+        compose = (ROOT/'compose.yaml').read_text()
+        self.assertIn('image: ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.1', compose)
+        workflow = (ROOT/'.github/workflows/runtime-image.yml').read_text()
+        self.assertIn('docker push "$IMAGE:bootstrap-3.8.1"', workflow)
+        self.assertNotIn('bootstrap-3.8.0', workflow)
+        self.assertNotIn(':latest', workflow)
+
+    def test_upgrade_preserves_rollback_cache(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            cache = root/'cache'
+            cache.mkdir()
+            old = cache/'srb-3.8.0.tar.gz'
+            old.write_bytes(b'previous version cache must remain untouched')
+            fixture = root/'mock.tar.gz'
+            self.archive(fixture)
+            with mock.patch.object(b, 'SHA256', b.digest(fixture)), mock.patch.object(b, 'download', side_effect=lambda p:p.write_bytes(fixture.read_bytes())):
+                binary = b.prepare(cache, root)
+            self.assertEqual(binary.parent.name, b.RELEASE)
+            self.assertEqual(old.read_bytes(), b'previous version cache must remain untouched')
+            self.assertTrue((cache/'srb-3.8.1.tar.gz').is_file())
+
+    def test_environment_cannot_override_release(self):
+        env = dict(os.environ, VERSION='0.0.0', URL='https://example.org/other', SHA256='0'*64, PYTHONPATH=str(ROOT))
+        result = subprocess.run([sys.executable, '-c',
+            'import bootstrap as b; print(b.VERSION); print(b.URL); print(b.SHA256)'],
+            env=env, text=True, capture_output=True, check=True)
+        self.assertEqual(result.stdout.splitlines(), [b.VERSION, b.URL, b.SHA256])
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
