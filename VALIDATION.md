@@ -4,9 +4,18 @@
 - 官方归档 7 个条目，保留全部官方文件与 ReadMe；没有将二进制或归档纳入仓库/镜像。
 - 检查官方许可：未取得公开预装再分发授权，因此维持用户运行时从作者下载官方包的 bootstrap 方式。
 - 11 项离线单元测试与 shell 语法检查通过。测试覆盖版本固定、禁止环境覆盖、保留 3.8.0 缓存、3.8.1 独立缓存与新 power tuner 不启用；测试只执行自写 mock，不执行真实矿工。
-- 3.8.1 Docker 构建、容器 smoke、GHCR 发布与匿名读取需等待本次 CI。当前执行环境无 Docker，不能声称本地容器验证通过。
+- 本地执行环境无 Docker；Docker 构建与无网络容器 smoke 在下述 GitHub Actions 中完成，不冒称本地容器验证。
 - 不更改用户 Unraid、GPU、钱包或安全设置；不运行挖矿，不验证真实 GPU 算力/份额。
 - 发布工作流只推送 `bootstrap-3.8.1` 与本次 `sha-*` 标签，不推送 `bootstrap-3.8.0` 或 `latest`。
+
+## 3.8.1 发布后验证（2026-10-29 04:26 UTC）
+
+- [GitHub Actions run 40817507034](https://github.com/TourShein/pearl-srb-docker/actions/runs/40817507034) 成功，构建源码 `6c32cd013588133dae9052c5e3d3ed0c5834a68c`；11 项 mock 单元测试、Docker 构建、无网络且缺钱包的容器 smoke、GHCR push 全部成功。
+- 发布标签 `bootstrap-3.8.1` 与 `sha-6c32cd013588133dae9052c5e3d3ed0c5834a68c`；两者 digest 都是 `sha256:72f34ed27a66cee580b7eebdc51e1695d2ba12b5b525d70e923a42134680b28e`。
+- 不带用户凭据，通过 GHCR 标准匿名 pull token 读取两个新标签的 manifest 与 3.8.1 config，均 HTTP 200；响应 digest 与本地 SHA256 计算相符。平台 `linux/amd64`，容器用户 `10001:10001`，入口 `/usr/local/bin/pearl-entrypoint`。
+- 另匿名读取并校验 3,479 字节 wrapper 镜像层，静态读取其中 bootstrap.py：版本、原作者下载 URL 与 SHA256 都与 3.8.1 源码一致；不执行镜像内代码。
+- 同时匿名复核 `bootstrap-3.8.0`：仍为 `sha256:d7118c3768b4bb884133b4d7ba612e3d8a70b45cfcce14950de24e2187eec855`，未覆盖、未删除。
+- 未执行完整本地 `docker pull` 或真实 GPU/Unraid 挖矿；镜像首次启动仍需从原作者下载受固定 SHA256 约束的官方 3.8.1 归档。
 
 ---
 

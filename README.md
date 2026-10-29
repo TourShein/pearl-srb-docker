@@ -1,6 +1,6 @@
 # Pearl / SRBMiner：Unraid 拉取运行
 
-**3.8.1 更新目标：`ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.1`；发布/验证状态见 [VALIDATION.md](VALIDATION.md)。旧的 `bootstrap-3.8.0` 保留用于回退，不覆盖。尚未做真实 GPU / Unraid 挖矿验证。**
+**3.8.1 公开镜像已发布：`ghcr.io/tourshein/pearl-srb-docker:bootstrap-3.8.1`。11 项离线测试、Docker 构建、无网络容器 smoke 与 GHCR 发布通过，匿名读取已验证。旧的 `bootstrap-3.8.0` 保留用于回退且 digest 未变。尚未做真实 GPU / Unraid 挖矿验证。**
 
 这个镜像不是空壳手工装矿工：镜像带运行库与启动器，**你第一次启动时自动从原作者下载 SRBMiner 3.8.1，校验固定 SHA256，然后执行挖矿**。后续启动复用专用缓存，不需再手动下载/挂载矿工。镜像层不打包或再分发闭源矿工。
 
@@ -66,3 +66,5 @@ SHA256 是 2026-10-29 独立下载原作者归档后本地计算的固定值，�
 
 3.8.0 回退版本发布记录：[CI run 40274295899](https://github.com/TourShein/pearl-srb-docker/actions/runs/40274295899)，构建源码 commit `ecabc0d13453f5ac5dfa9533a8f2b081a1e339b9`。镜像 digest：`sha256:d7118c3768b4bb884133b4d7ba612e3d8a70b45cfcce14950de24e2187eec855`。如需固定内容，可用该 digest 代替 tag。
 
+
+3.8.1 发布记录：[CI run 40817507034](https://github.com/TourShein/pearl-srb-docker/actions/runs/40817507034)，构建源码 commit `6c32cd013588133dae9052c5e3d3ed0c5834a68c`。镜像 digest：`sha256:72f34ed27a66cee580b7eebdc51e1695d2ba12b5b525d70e923a42134680b28e`。可用 `ghcr.io/tourshein/pearl-srb-docker@sha256:72f34ed27a66cee580b7eebdc51e1695d2ba12b5b525d70e923a42134680b28e` 固定镜像内容。详见 [验证记录](VALIDATION.md)。
