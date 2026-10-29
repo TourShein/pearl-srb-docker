@@ -26,11 +26,11 @@ jobs:
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-          docker build --pull -f Dockerfile -t "$IMAGE:bootstrap-3.8.0" -t "$IMAGE:sha-$GITHUB_SHA" .
+          docker build --pull -f Dockerfile -t "$IMAGE:bootstrap-3.8.1" -t "$IMAGE:sha-$GITHUB_SHA" .
       - name: Offline container smoke (no wallet, network, GPU or miner)
         run: |
           set +e
-          docker run --rm --network none --read-only --cap-drop ALL "$IMAGE:bootstrap-3.8.0" >smoke.log 2>&1
+          docker run --rm --network none --read-only --cap-drop ALL "$IMAGE:bootstrap-3.8.1" >smoke.log 2>&1
           status=$?
           set -e
           cat smoke.log
@@ -43,6 +43,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "$IMAGE:bootstrap-3.8.0"
+          docker push "$IMAGE:bootstrap-3.8.1"
           docker push "$IMAGE:sha-$GITHUB_SHA"
           docker logout ghcr.io
+
